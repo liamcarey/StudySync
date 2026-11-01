@@ -1,23 +1,29 @@
+
 package com.example.studysync
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+enum class AppScreen {
+    LANDING,
+    SIGNUP,
+    LOGIN,
+    HOME,
+    MAP
+}
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -32,29 +38,37 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun StudySyncApp() {
 
-    // Login state
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var showSignup by remember { mutableStateOf(false) }
-    var isLoggedIn by remember { mutableStateOf(false) }
+    var currentScreen by remember {
+        mutableStateOf(AppScreen.LANDING)
+    }
+
     val scope = rememberCoroutineScope()
 
-    // Navigation state
-    var showCreateGroup by remember { mutableStateOf(false) }
-
-    // Study groups retrieved from PostgreSQL
     val studyGroups = remember {
         mutableStateListOf<StudyGroup>()
     }
 
-    var isLoading by remember { mutableStateOf(true) }
+    var showCreateGroup by remember {
+        mutableStateOf(false)
+    }
+
+    var isLoading by remember {
+        mutableStateOf(false)
+    }
+
     var loadError by remember {
         mutableStateOf<String?>(null)
     }
 
-    // Retrieve groups when user enters the home screen
-    LaunchedEffect(isLoggedIn) {
-        if (isLoggedIn) {
+    var refreshVersion by remember {
+        mutableIntStateOf(0)
+    }
+
+    // Retrieve study groups from PostgreSQL
+    LaunchedEffect(currentScreen, refreshVersion) {
+
+        if (currentScreen == AppScreen.HOME) {
+
             isLoading = true
             loadError = null
 
@@ -67,161 +81,195 @@ fun StudySyncApp() {
                 studyGroups.addAll(groups)
 
             } catch (e: Exception) {
+
                 loadError = e.message ?: "Unknown error"
+
             } finally {
+
                 isLoading = false
             }
         }
     }
 
-    // Display home screen or create group screen
-    if (isLoggedIn) {
+    when (currentScreen) {
 
-        if (showCreateGroup) {
-            CreateGroupScreen(
-                onCreateGroup = { newGroup ->
-                    scope.launch {
-                        try {
-                            val savedGroup = withContext(Dispatchers.IO) {
-                                StudySyncApi.createGroup(newGroup)
-                            }
+        // LANDING SCREEN
+        AppScreen.LANDING -> {
 
-                            studyGroups.add(0, savedGroup)
-                            showCreateGroup = false
-
-                        } catch (e: Exception) {
-                            loadError = e.message ?: "Failed to create group"
-                        }
-                    }
-                },
-                onBack = {
-                    showCreateGroup = false
-                }
-            )
-
-        } else if (isLoading) {
-
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-
-        } else if (loadError != null) {
-
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Failed to load groups: $loadError",
-                    modifier = Modifier.padding(24.dp)
-                )
-            }
-
-        } else {
-
-            HomeScreen(
-                studyGroups = studyGroups,
-
-                onCreateClick = {
-                    showCreateGroup = true
+            LandingScreen(
+                onSignUp = {
+                    currentScreen = AppScreen.SIGNUP
                 },
 
-                onJoinGroup = { index ->
-                    val group = studyGroups[index]
-
-                    if (!group.joined) {
-                        studyGroups[index] = group.copy(
-                            members = group.members + 1,
-                            joined = true
-                        )
-                    }
+                onLogin = {
+                    currentScreen = AppScreen.LOGIN
                 }
             )
         }
 
-        return
-    }
+        // SIGNUP SCREEN
+        AppScreen.SIGNUP -> {
 
-    // Login / Signup Screen
-    Surface(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+            SignUpScreen(
+                onSignUp = { first, last, email, password ->
 
-            Text(
-                text = "StudySync",
-                style = MaterialTheme.typography.headlineLarge
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Find your next study group",
-                style = MaterialTheme.typography.bodyLarge
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("Email") },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email
-                ),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Password") },
-                visualTransformation = PasswordVisualTransformation(),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = {
-                    // Temporary login navigation
-                    // JWT authentication will be implemented later
-                    isLoggedIn = true
+                    // Existing demo navigation
+                    currentScreen = AppScreen.HOME
                 },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    if (showSignup) "Sign Up" else "Log In"
-                )
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                onLoginClick = {
+                    currentScreen = AppScreen.LOGIN
+                },
 
-            TextButton(
-                onClick = {
-                    showSignup = !showSignup
+                onBack = {
+                    currentScreen = AppScreen.LANDING
                 }
-            ) {
-                Text(
-                    if (showSignup)
-                        "Already have an account? Log In"
-                    else
-                        "Don't have an account? Sign Up"
+            )
+        }
+
+        // LOGIN SCREEN
+        AppScreen.LOGIN -> {
+
+            LoginScreen(
+                onLogin = { email, password ->
+
+                    // Existing demo navigation
+                    currentScreen = AppScreen.HOME
+                },
+
+                onSignUpClick = {
+                    currentScreen = AppScreen.SIGNUP
+                },
+
+                onBack = {
+                    currentScreen = AppScreen.LANDING
+                }
+            )
+        }
+
+        // HOME SCREEN
+        AppScreen.HOME -> {
+
+            if (showCreateGroup) {
+
+                CreateGroupScreen(
+                    onCreateGroup = { newGroup ->
+
+                        scope.launch {
+
+                            try {
+
+                                val savedGroup = withContext(Dispatchers.IO) {
+                                    StudySyncApi.createGroup(newGroup)
+                                }
+
+                                studyGroups.add(0, savedGroup)
+
+                                showCreateGroup = false
+                                loadError = null
+
+                            } catch (e: Exception) {
+
+                                loadError = e.message
+                                    ?: "Failed to create group"
+                            }
+                        }
+                    },
+
+                    onBack = {
+                        showCreateGroup = false
+                    }
+                )
+
+            } else if (isLoading) {
+
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+
+            } else if (loadError != null) {
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+
+                    Text(
+                        text = "Failed to load groups: $loadError"
+                    )
+
+                    Spacer(
+                        modifier = Modifier.height(16.dp)
+                    )
+
+                    Button(
+                        onClick = {
+                            refreshVersion++
+                        }
+                    ) {
+                        Text("Retry")
+                    }
+                }
+
+            } else {
+
+                HomeScreen(
+                    studyGroups = studyGroups,
+
+                    onCreateClick = {
+                        showCreateGroup = true
+                    },
+
+                    // NEW: Open Google Maps
+                    onMapClick = {
+                        currentScreen = AppScreen.MAP
+                    },
+
+                    onJoinGroup = { index ->
+
+                        if (index in studyGroups.indices) {
+
+                            val group = studyGroups[index]
+
+                            if (!group.joined) {
+
+                                studyGroups[index] = group.copy(
+                                    members = group.members + 1,
+                                    joined = true
+                                )
+                            }
+                        }
+                    },
+
+                    onLogout = {
+
+                        studyGroups.clear()
+                        showCreateGroup = false
+                        loadError = null
+
+                        currentScreen = AppScreen.LANDING
+                    }
                 )
             }
+        }
+
+        // GOOGLE MAPS SCREEN
+        AppScreen.MAP -> {
+
+            StudyMapScreen(
+                studyGroups = studyGroups,
+
+                onBack = {
+                    currentScreen = AppScreen.HOME
+                }
+            )
         }
     }
 }

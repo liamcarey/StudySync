@@ -1,0 +1,14 @@
+node_modules/
+.env
+*.log
+
+
+.env.*
+local.properties
+node_modules/
+.gradle/
+**/build/
+**/.vscode/
+*.session.sql
+*.keystore
+*.jks

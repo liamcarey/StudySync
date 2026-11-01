@@ -1,6 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
-    id("org.jetbrains.kotlin.plugin.compose") version "2.2.10"
+    alias(libs.plugins.kotlin.compose)
 }
 
 android {
@@ -33,14 +33,39 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(
+            org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        )
     }
 }
 
 dependencies {
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.appcompat)
+
+    // Google Maps
+    implementation("com.google.maps.android:maps-compose:9.0.1")
+
+// Google Maps marker clustering
+    implementation("com.google.maps.android:maps-compose-utils:9.0.1")
+
+// GPS
+    implementation("com.google.android.gms:play-services-location:21.4.0")
+
+    // Google Maps for Jetpack Compose
+    implementation("com.google.maps.android:maps-compose:9.0.1")
+
+// Google Play Services Location
+    implementation("com.google.android.gms:play-services-location:21.4.0")
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.core.ktx)
     implementation(libs.material)
